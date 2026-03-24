@@ -14,9 +14,8 @@ from typing import Union, List, Any
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from openai_api.openai_client import OpenAIClient
 
-from utils.sql_skeleton_extract import generate_sql_skeleton
 from utils.table_structure_extract import get_table_structure_from_api
-from utils.question_skeleton_extract import deal_question_skeneton
+from utils.question_skeleton_extract import deal_question_skeleton
 
 def normalize_answer(answer: Any) -> str:
     """
@@ -179,19 +178,46 @@ class TableUtils:
         """
         Convert table data to Markdown format
         
-        Args:
-            table (dict): Table data dictionary containing header and rows
-        
         Returns:
             str: Formatted Markdown table
         """
-        header = ' | '.join(table['header'])
+        if isinstance(table, str):
+            # If already a string, return as-is (defensive check)
+            return table
+            
+        if not isinstance(table, dict) or 'header' not in table or 'rows' not in table:
+            return f"Error: Invalid table format (expected dict with header/rows, got {type(table).__name__})"
+
+        header = ' | '.join(str(h) for h in table['header'])
         separator = ' | '.join(['---'] * len(table['header']))
 
-        rows = [' | '.join(row) for row in table['rows']]
+        rows = [' | '.join(str(cell) for cell in row) for row in table['rows']]
 
         formatted_table = '\n'.join([header, separator] + rows)
         return formatted_table
+
+    @staticmethod
+    def truncate_table(table, max_rows: int = 5) -> dict:
+        """
+        Truncate a table to header + first max_rows rows to reduce context length.
+        Used when formatting knowledge-base (similar-question) tables to avoid
+        pushing important earlier content out of the model's attention window.
+
+        Returns:
+            dict: Truncated table dict with same structure
+        """
+        if not isinstance(table, dict):
+            return table
+
+        rows = table.get('rows', [])
+        truncated = rows[:max_rows]
+        omitted = len(rows) - len(truncated)
+        result = {'header': table.get('header', []), 'rows': truncated}
+        if omitted > 0:
+            # Append a placeholder row so the model knows the table was truncated
+            placeholder = [f'... ({omitted} more rows omitted)'] + ['...'] * (len(result['header']) - 1)
+            result['rows'] = truncated + [placeholder]
+        return result
 
     @staticmethod   
     def generate_table_structure(headers, sample_rows):
@@ -263,23 +289,17 @@ class TableUtils:
         """
         results = {}
 
-        def run_generate_sql_skeleton():
-            return generate_sql_skeleton(user_question)
 
         def run_get_table_structure_from_api():
             return get_table_structure_from_api(user_table)
 
-        def run_deal_question_skeneton():
-            return deal_question_skeneton(user_question, user_table)
+        def run_deal_question_skeleton():
+            return deal_question_skeleton(user_question, user_table)
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_sql = executor.submit(run_generate_sql_skeleton)
             future_table_structure = executor.submit(run_get_table_structure_from_api)
-            future_question_skeleton = executor.submit(run_deal_question_skeneton)
+            future_question_skeleton = executor.submit(run_deal_question_skeleton)
 
-            sql_skeleton_result = future_sql.result()
-            print("SQL Skeleton generation completed")
-            
             table_structure_result = future_table_structure.result()
             print("Table Structure generation completed")
             
@@ -292,7 +312,6 @@ class TableUtils:
                 question_skeleton = ""
                 print("Question Skeleton generation completed (embedding only)")
 
-            results['sql_skeleton'] = sql_skeleton_result
             results['table_structure'] = table_structure_result
             results['question_skeleton_embedding'] = question_skeleton_embedding
             results['question_skeleton'] = question_skeleton

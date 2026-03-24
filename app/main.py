@@ -4,10 +4,13 @@ from backend_api.muti_knowledge_visual_api import router as knowledge_router
 from backend_api.core_processor_api import router as processor_router
 from backend_api.any_record_visual_api import router as statistics_router
 from backend_api.file_service_api import router as file_router
-from backend_api.config_api import router as config_router  # 新增配置路由
-from mcp_client.client import router as chat_router
+from backend_api.config_api import router as config_router  
+from backend_api.agent_api import router as agent_router    
+from backend_api.auth_api import router as auth_router
+from backend_api.chat_history_api import router as chat_history_router
+from backend_api.chat_api import router as chat_router
 from contextlib import asynccontextmanager
-from mcp_client.client import load_mcp_config, load_all_tools
+from mcp_client.connection import load_mcp_config, load_all_tools
 
 import uvicorn
 import logging
@@ -49,7 +52,10 @@ app.include_router(processor_router)
 app.include_router(statistics_router) 
 app.include_router(chat_router) 
 app.include_router(file_router)  # 添加文件服务路由
-app.include_router(config_router)  # 添加配置管理路由
+app.include_router(config_router)  
+app.include_router(agent_router)  
+app.include_router(auth_router)
+app.include_router(chat_history_router)
 
 @app.get("/")
 async def root():

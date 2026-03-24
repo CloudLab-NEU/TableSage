@@ -1,0 +1,24 @@
+﻿
+[1m════════════════════════════════════════════════════════════
+  TableSage 集成测试  [2026-03-20 14:53:35]
+════════════════════════════════════════════════════════════[0m
+
+[1m[94m────────────────────────────────────────────────────────────
+  Test 1 · 环境与配置检查
+────────────────────────────────────────────────────────────[0m
+python : Traceback (most recent call last):
+所在位置 行:1 字符: 29
++ ... tivate.ps1; python tests/integration_test.py --test custom 2>&1 | Out ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [],  
+   RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "D:\TableSage\app\tests\integration_test.py", line 648, in <module>
+    env_ok = test_environment()
+  File "D:\TableSage\app\tests\integration_test.py", line 73, in test_environment
+    ok(f"{k} = {v[:20]}...")
+  File "D:\TableSage\app\tests\integration_test.py", line 45, in ok
+    def ok(msg):    print(f"  {GREEN}\u2713 {msg}{RESET}")
+UnicodeEncodeError: 'gbk' codec can't encode character '\u2713' in position 7: illegal multib
+yte sequence

@@ -4,6 +4,9 @@ from core_progress.final_processor import FinalAnswerProcessor
 from utils.utils import TableUtils
 from core_progress.search_similar_question import find_topn_question
 from backend_api.config_api import config_params
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TableSageProcessor:
     """
@@ -38,7 +41,7 @@ class TableSageProcessor:
         try: 
             # Step 1: Search for similar questions          
             question_deal_res = TableUtils.match_similar_data_processor(user_question, user_table)
-            similar_questions,_ = find_topn_question(question_deal_res['sql_skeleton'],
+            similar_questions,_ = find_topn_question(question_deal_res['question_skeleton'],
                                                      question_deal_res['question_skeleton_embedding'],
                                                      question_deal_res['table_structure'],
                                                      config_params.get('topN', 5))
@@ -46,10 +49,10 @@ class TableSageProcessor:
             # Step 2: First round answering using answer_processor
             answer_result = self.answer_processor.process_answering(similar_questions)
 
-            if answer_result.get("processed_results"):
-                self.answer_processor._print_detailed_answers(answer_result["processed_results"])
-
-            self.answer_processor.print_answering_results(answer_result)
+            # Log summary via standard logging (print methods were removed)
+            logger.info(f"[Answer] confidence={answer_result.get('confidence', 0):.2%}, "
+                        f"skip={answer_result.get('flag_0_records_count', 0)}, "
+                        f"need_strategy={answer_result.get('need_strategy', False)}")
             
             # Get confidence metrics
             first_confidence = answer_result.get("confidence", 0)
@@ -91,7 +94,6 @@ class TableSageProcessor:
                     "user_question": user_question,
                     "user_table": user_table,
                     "true_answer": true_answer,
-                    "sql_skeleton": question_deal_res["sql_skeleton"],
                     "question_skeleton": question_deal_res["question_skeleton"],
                 }
 
@@ -117,7 +119,6 @@ class TableSageProcessor:
                     "user_question": user_question,
                     "user_table": user_table,
                     "true_answer": true_answer,
-                    "sql_skeleton": question_deal_res["sql_skeleton"],
                     "question_skeleton": question_deal_res["question_skeleton"],
                 }
             return result
@@ -142,7 +143,7 @@ class TableSageProcessor:
             
             # Step 1: Search for similar questions          
             question_deal_res = TableUtils.match_similar_data_processor(user_question, user_table)
-            similar_questions,_ = find_topn_question(question_deal_res['sql_skeleton'],
+            similar_questions,_ = find_topn_question(question_deal_res['question_skeleton'],
                                                      question_deal_res['question_skeleton_embedding'],
                                                      question_deal_res['table_structure'],
                                                      config_params.get('topN', 5))
@@ -182,7 +183,6 @@ class TableSageProcessor:
                 "user_question": user_question,
                 "user_table": user_table,
                 "true_answer": true_answer,
-                "sql_skeleton": question_deal_res["sql_skeleton"],
                 "question_skeleton": question_deal_res["question_skeleton"],
             }
             

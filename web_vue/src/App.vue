@@ -1,23 +1,29 @@
 <script setup lang="ts">
+import AppLayout from './components/layout/AppLayout.vue'
 </script>
 
 <template>
-  <div id="app">
-    <router-view />
-  </div>
+  <AppLayout>
+    <router-view v-slot="{ Component }">
+      <transition name="fade" mode="out-in">
+        <keep-alive>
+          <component :is="Component" />
+        </keep-alive>
+      </transition>
+    </router-view>
+  </AppLayout>
 </template>
 
-<style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+<style>
+/* Global routing transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 </style>

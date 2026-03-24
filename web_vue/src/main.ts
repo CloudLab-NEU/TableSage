@@ -1,8 +1,9 @@
 import { createApp } from 'vue'
 import App from './App.vue'
- 
- //routes
- import router from "./routes/index"; 
+import './style.css'
+
+//routes
+import router from "./routes/index";
 
 import * as echarts from 'echarts/core'
 import { BarChart, LineChart, PieChart } from 'echarts/charts'
@@ -24,9 +25,9 @@ echarts.use([
   PieChart,
   CanvasRenderer
 ])
- 
-const app= createApp(App)
- 
+
+const app = createApp(App)
+
 //routes 
-app.use(router)  
+app.use(router)
 app.mount('#app')

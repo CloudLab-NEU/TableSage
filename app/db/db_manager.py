@@ -2,6 +2,7 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 from datetime import datetime
 import os
+from typing import Dict, Any, List, Optional
 
 class DatabaseManager:
     """
@@ -24,7 +25,8 @@ class DatabaseManager:
         DB_PORT = int(os.environ.get("DB_PORT"))
         DB_USER = os.environ.get("DB_USER")
         DB_PASSWORD = os.environ.get("DB_PASSWORD")
-        self.client = MongoClient(host=DB_HOST, port=DB_PORT, username=DB_USER, password=DB_PASSWORD)
+        self.client = MongoClient(host=DB_HOST, port=DB_PORT)
+        # , username=DB_USER, password=DB_PASSWORD
         self.db = self.client["TableSage"]
         
         # Initialize collections
@@ -32,6 +34,12 @@ class DatabaseManager:
         self.learning_records = self.db["LearningRecordsDataBase"]
         self.teaching_records = self.db["GuidanceRecordsDataBase"] 
         self.error_records = self.db["ErrorRecordsDataBase"]
+        
+        # User and Chat History collections
+        self.users = self.db["Users"]
+        self.chat_sessions = self.db["ChatSessions"]
+        self.result_cache_col = self.db["ResultCache"]
+        self.multi_turn_sessions = self.db["MultiTurnSessions"]
         
         self._ensure_text_index()
         
@@ -190,39 +198,6 @@ class DatabaseManager:
         
         return text_search_results
 
-
-    def search_similar_sql_skeleton_by_text(self, sql_skeleton):
-        """
-        Search similar SQL skeletons using text index
-        
-        Args:
-            sql_skeleton: User input SQL skeleton
-            
-        Returns:
-            list: List of records containing SQL skeletons and IDs
-        """
-        # Use text search to find related SQL skeletons
-        pipeline = [
-            {
-                "$match": {
-                    "$text": {"$search": sql_skeleton}
-                }
-            },
-            {
-                "$project": {
-                    "table_id": 1,
-                    "sql_skeleton": 1,
-                    "score": {"$meta": "textScore"},
-                    "_id": 0
-                }
-            },
-            {"$sort": {"score": -1}},
-        ]
-        
-        cursor = self.knowledge_db.aggregate(pipeline)
-        text_search_results = list(cursor)
-        
-        return text_search_results
     
     def update_learning_record_with_rethink(self, table_id, flag, rethink_summary):
         """
@@ -428,6 +403,7 @@ class DatabaseManager:
             {"table_id": {"$in": id_list}}, 
             {
                 "table_id": 1, 
+                "question": 1,
                 "sk_embedding": 1, 
                 "table_structure": 1,
                 "_id": 0
@@ -480,3 +456,117 @@ class DatabaseManager:
         
         results = list(self.teaching_records.aggregate(pipeline))
         return results
+
+    # --- User Management ---
+    def create_user(self, username, password_hash):
+        if self.users.find_one({"username": username}):
+            return None
+        return self.users.insert_one({
+            "username": username,
+            "password_hash": password_hash,
+            "created_at": datetime.now()
+        })
+
+    def get_user_by_username(self, username):
+        return self.users.find_one({"username": username})
+
+    # --- Chat Session Management ---
+    def save_chat_session(self, user_id, session_id, title, messages):
+        """Save or update a chat session."""
+        return self.chat_sessions.update_one(
+            {"session_id": session_id, "user_id": user_id},
+            {
+                "$set": {
+                    "title": title,
+                    "messages": messages,
+                    "updated_at": datetime.now()
+                },
+                "$setOnInsert": {
+                    "created_at": datetime.now()
+                }
+            },
+            upsert=True
+        )
+
+    def get_user_sessions(self, user_id):
+        """Get all session titles for a user."""
+        return list(self.chat_sessions.find(
+            {"user_id": user_id},
+            {"messages": 0}  # Don't return messages in summary list
+        ).sort("updated_at", -1))
+
+    def get_chat_session(self, user_id, session_id):
+        """Get full session data."""
+        return self.chat_sessions.find_one({"session_id": session_id, "user_id": user_id})
+
+    def delete_chat_session(self, user_id, session_id):
+        """Delete a specific session."""
+        return self.chat_sessions.delete_one({"session_id": session_id, "user_id": user_id})
+
+    # --- Result Cache Management ---
+    def save_result_cache(self, session_id, data):
+        """Save specialized analytical result to cache."""
+        return self.result_cache_col.update_one(
+            {"session_id": session_id},
+            {"$set": {"data": data, "updated_at": datetime.now()}},
+            upsert=True
+        )
+
+    def get_result_cache(self, session_id):
+        """Retrieve specialized analytical result from cache."""
+        record = self.result_cache_col.find_one({"session_id": session_id})
+        return record["data"] if record else None
+
+    # --- Multi-turn Session Context ---
+    def get_session_context(self, conversation_id: str) -> Dict[str, Any]:
+        """Retrieve multi-turn context (table_hash, history, etc.)."""
+        session = self.multi_turn_sessions.find_one({"conversation_id": conversation_id})
+        if not session:
+            return {"table_hash": "", "history": [], "reasoning_summary": ""}
+        return {
+            "table_hash": session.get("table_hash", ""),
+            "history": session.get("history", []),
+            "reasoning_summary": session.get("reasoning_summary", "")
+        }
+
+    def update_session_history(self, conversation_id: str, table_hash: str, question: str, answer: str, reasoning_summary: str = ""):
+        """Append a new turn to the conversation history."""
+        new_turn = {
+            "question": question,
+            "answer": answer,
+            "timestamp": datetime.now().isoformat()
+        }
+        update_doc = {
+            "$push": {"history": {"$each": [new_turn], "$slice": -10}}, # Keep last 10 turns
+            "$set": {
+                "table_hash": table_hash,
+                "updated_at": datetime.now()
+            }
+        }
+        if reasoning_summary:
+            update_doc["$set"]["reasoning_summary"] = reasoning_summary
+            
+        return self.multi_turn_sessions.update_one(
+            {"conversation_id": conversation_id},
+            update_doc,
+            upsert=True
+        )
+
+    def reset_session_context(self, conversation_id: str, new_table_hash: str):
+        """Reset history when the table changes."""
+        return self.multi_turn_sessions.update_one(
+            {"conversation_id": conversation_id},
+            {
+                "$set": {
+                    "table_hash": new_table_hash,
+                    "history": [],
+                    "reasoning_summary": "",
+                    "updated_at": datetime.now()
+                }
+            },
+            upsert=True
+        )
+
+if __name__ == "__main__":
+    db = DatabaseManager()
+    print(db.get_knowledge_by_id("nt-0"))

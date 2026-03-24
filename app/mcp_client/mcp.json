@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "product-mcp": {
-      "url": ""
+      "url": "https://mcp.api-inference.modelscope.net/ce7ab4b3688049/sse"
     }
   }
 }

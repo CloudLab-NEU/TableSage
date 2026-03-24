@@ -1,0 +1,17 @@
+{
+    "header":["Country", "Matches Played", "Wins", "Draws", "Losses", "Goals For", "Goals Against", "Points"],
+    "rows":[
+        ["Brazil",      20, 14, 3, 3, 42, 15, 45],
+        ["Germany",     20, 12, 5, 3, 38, 18, 41],
+        ["Argentina",   20, 13, 2, 5, 35, 20, 41],
+        ["France",      20, 11, 6, 3, 33, 14, 39],
+        ["Spain",       20, 10, 7, 3, 30, 16, 37],
+        ["Netherlands", 20,  9, 5, 6, 28, 22, 32],
+        ["Italy",       20,  8, 8, 4, 25, 17, 32],
+        ["England",     20,  9, 4, 7, 27, 24, 31],
+        ["Portugal",    20,  8, 5, 7, 26, 23, 29],
+        ["Belgium",     20,  7, 6, 7, 24, 25, 27],
+        ["Uruguay",     20,  6, 5, 9, 20, 28, 23],
+        ["Colombia",    20,  5, 4, 11, 18, 32, 19]
+    ]
+}

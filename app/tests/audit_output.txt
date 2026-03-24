@@ -1,0 +1,19 @@
+﻿
+[1m══════════════════════════════════════════════════════════════════════
+  上下文大小审计 - 实际工具返回内容测量
+══════════════════════════════════════════════════════════════════════[0m
+
+Table Structure generation completed
+finally_skeleton: What is the average _ of the _ in _ ?
+Question Skeleton Embedding generation completed
+  [96mRAG: 5 道相似题[0m
+  [96m→ 调用: get_learning_records[0m
+  [96m→ 调用: answer_by_id[0m
+  [96m→ 调用: think[0m
+  [96m→ 调用: answer_by_id[0m
+  [96m→ 调用: think[0m
+  [96m→ 调用: answer_by_id[0m
+  [96m→ 调用: think[0m
+  [96m→ 调用: answer_by_id[0m
+  [96m→ 调用: think[0m
+  [96m→ 调用: generate_final_answer[0m

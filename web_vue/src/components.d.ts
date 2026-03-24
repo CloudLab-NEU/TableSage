@@ -8,10 +8,10 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    KnowledgeVisualization: typeof import('./components/knowledge-visualization.vue')['default']
-    MainChat: typeof import('./components/MainChat.vue')['default']
+    AppLayout: typeof import('./components/layout/AppLayout.vue')['default']
+    Navbar: typeof import('./components/layout/Navbar.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    TeachingVisualization: typeof import('./components/teaching-visualization.vue')['default']
+    Sidebar: typeof import('./components/layout/Sidebar.vue')['default']
   }
 }

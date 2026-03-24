@@ -1,0 +1,42 @@
+# Python
+**/__pycache__/
+*.py[cod]
+*$py.class
+**/.venv/
+**/env/
+**/venv/
+**/.env
+
+# Node.js
+**/node_modules/
+**/dist/
+**/package-lock.json
+**/build_errors.log
+.DS_Store
+
+# MCP local config if any
+mcp_client/mcp_config.json
+**/__pycache__/
+
+# Byte-compiled / optimized / DLL files
+*.pyc
+*.pyo
+*.pyd
+
+# Caches
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Models & Weights
+**/table_structure_type_model/**/*.safetensors
+**/table_structure_type_model/**/*.bin
+**/table_structure_type_model/**/*.pkl
+**/table_structure_type_model/**/*.pth
+
+# Logs & Temp
+*.log
+tmp/
+*.docx
+*.pdf

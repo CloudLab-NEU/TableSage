@@ -5,7 +5,8 @@ from core_progress.tablesage_processor import TableSageProcessor
 import logging
 from fastapi.responses import StreamingResponse
 import json
-from mcp_client.client import generate_session_id, result_cache
+from backend_api.chat_api import generate_session_id, result_cache
+from agent.router_agent import RouterAgent
 
 # 设置日志
 logging.basicConfig(level=logging.INFO)
@@ -15,6 +16,8 @@ router = APIRouter(prefix="/api/processor", tags=["核心答题处理"])
 
 # 初始化TableSage处理器
 table_sage_processor = TableSageProcessor()
+# 初始化Router Agent
+router_agent = RouterAgent()
 
 class TableData(BaseModel):
     """表格数据模型"""
@@ -25,6 +28,7 @@ class QuestionRequest(BaseModel):
     """问题请求模型"""
     question: str = Field(..., min_length=1, description="用户问题")
     table: TableData = Field(..., description="表格数据")
+    session_id: Optional[str] = Field(None, description="会话ID")
 
 class AnswerResponse(BaseModel):
     """答案响应模型"""
@@ -52,8 +56,13 @@ async def process_question(request: QuestionRequest):
             "rows": request.table.rows
         }
         
-        # 调用TableSage处理器
-        result = table_sage_processor.process(request.question, user_table)
+        # 1. 通过 Router Agent 抽取意图和纯净的核心问题
+        table_schema_str = ", ".join(user_table["header"])
+        plan = await router_agent.analyze_intent(request.question, False, table_schema_str)
+        core_question = plan.get("core_question", request.question)
+        
+        # 2. 调用TableSage处理器 (使用 core_question)
+        result = table_sage_processor.process(core_question, user_table)
         
         # 检查是否有错误
         if "error" in result:
@@ -76,6 +85,10 @@ async def process_question(request: QuestionRequest):
                 "flow_path": result.get("flow_path", "unknown"),
                 "similar_questions": result.get("similar_questions", []),
                 "metadata": {
+                    "original_question": request.question,
+                    "core_question_used": core_question,
+                    "needs_visualization": plan.get("needs_visualization", False),
+                    "visualization_instruction": plan.get("visualization_instruction", ""),
                     "question_length": len(request.question),
                     "table_size": f"{len(request.table.header)}x{len(request.table.rows)}",
                     "processing_method": result.get("flow_path", "unknown")
@@ -100,17 +113,24 @@ async def process_question(request: QuestionRequest):
 
 @router.post("/answer-stream")
 async def process_question_stream(request: QuestionRequest):
-    # 生成会话ID
+    user_table = {
+        "header": request.table.header,
+        "rows": request.table.rows
+    }
+    
+    session_id = request.session_id or generate_session_id(request.question, user_table)
+    table_schema_str = ", ".join(user_table["header"])
+    
+    # 通过 Router Agent 抽取意图和纯净的核心问题
+    plan = await router_agent.analyze_intent(request.question, False, table_schema_str)
+    core_question = plan.get("core_question", request.question)
     
     def event_stream():
-        user_table = {
-            "header": request.table.header,
-            "rows": request.table.rows
-        }
-
-        session_id = generate_session_id(request.question, user_table)
         try:
-            for item in table_sage_processor.process_stream(request.question, user_table):
+            # 也可以在这里返回 router 的推断结果，让前端知道在画图
+            yield json.dumps({"step": "router", "plan": plan}, ensure_ascii=False) + "\\n"
+            
+            for item in table_sage_processor.process_stream(core_question, user_table):
                 # 添加session_id到每个响应
                 item["session_id"] = session_id
                 
@@ -183,8 +203,12 @@ async def process_batch_questions(requests: List[QuestionRequest]):
                     "rows": request.table.rows
                 }
                 
+                table_schema_str = ", ".join(user_table["header"])
+                plan = await router_agent.analyze_intent(request.question, False, table_schema_str)
+                core_question = plan.get("core_question", request.question)
+                
                 # 处理单个问题
-                result = table_sage_processor.process(request.question, user_table)
+                result = table_sage_processor.process(core_question, user_table)
                 results.append({
                     "index": i,
                     "question": request.question[:50] + "..." if len(request.question) > 50 else request.question,
